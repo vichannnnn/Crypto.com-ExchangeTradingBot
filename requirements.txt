@@ -1,0 +1,7 @@
+git+https://github.com/iDevision/enhanced-discord.py
+jishaku
+cryptocom-exchange
+discord~=1.7.3
+xlsxwriter
+PyYAML~=6.0
+pytz~=2021.3
