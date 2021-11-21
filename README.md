@@ -17,6 +17,7 @@ Tracks your crypto balance in the application in a simple manner. (NOTE: Does NO
 ### Buy/Sell Trade Orders (Market & Limit)
 
 Trade with a command on Discord as if you're trading on the Exchange app.
+
 ![image](https://user-images.githubusercontent.com/54580948/142765866-9b620230-bf55-4fd9-aa6d-c629ae683817.png)
 
 
