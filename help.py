@@ -1,7 +1,6 @@
 import discord
 from discord.ext import commands
 import sqlite3
-from cogs.colourEmbed import embedColour
 
 conn = sqlite3.connect('prefix.db', timeout=5.0)
 c = conn.cursor()
@@ -23,7 +22,7 @@ class Choice(discord.ui.Select):
         idx = labels.index(self.values[0])
         self.choice = str(self.options[idx].emoji) + self.values[0]
 
-        embed = discord.Embed(title=f'{self.choice} Help', colour=embedColour(self.ctx.guild.id))
+        embed = discord.Embed(title=f'{self.choice} Help')
         embed.set_footer(
             text=f"React for more category help! :: {self.ctx.message.guild}'s prefix currently is {currentPrefix}",
             icon_url=self.ctx.author.avatar.url)
@@ -76,8 +75,7 @@ class Help(commands.Cog, name="Help"):
         currentPrefix = [i[0] for i in c.execute(f'SELECT prefix FROM prefix WHERE guildID = ? ', (ctx.guild.id, ))][0]
 
         embed = discord.Embed(description=f"Type `{currentPrefix}myprefix` for this server's prefix.\n"
-                                          f"Type `{currentPrefix}setprefix` to change the prefix for this server.",
-                              colour=embedColour(ctx.guild.id))
+                                          f"Type `{currentPrefix}setprefix` to change the prefix for this server.")
         embed.set_author(name=f"{str(self.bot.user).partition('#')[0]}'s Commands and Help", icon_url=self.bot.user.avatar.url)
         embed.set_footer(text=f"React for more category help! :: {ctx.message.guild}'s prefix currently is {currentPrefix}",
             icon_url=self.bot.user.avatar.url)

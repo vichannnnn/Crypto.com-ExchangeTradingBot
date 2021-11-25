@@ -81,7 +81,7 @@ class Menu(discord.ui.View):
         self.value -= 1
         if self.value <= 0 or self.value > self.pages:
             embed = discord.Embed(title="Profit & Loss", description=f"You have reached the end of the pages.")
-            if self.ctx.guild.icon.url:
+            if self.ctx.guild.icon:
                 embed.set_thumbnail(url=self.ctx.guild.icon.url)
             else:
                 pass
@@ -107,7 +107,7 @@ class Menu(discord.ui.View):
             description += '\n```'
 
             embed = discord.Embed(title="Profit & Loss", description=description)
-            if self.ctx.guild.icon.url:
+            if self.ctx.guild.icon:
                 embed.set_thumbnail(url=self.ctx.guild.icon.url)
             else:
                 pass
@@ -120,7 +120,7 @@ class Menu(discord.ui.View):
 
         if self.value > self.pages:
             embed = discord.Embed(title="Profit & Loss", description=f"You have reached the end of the pages.")
-            if self.ctx.guild.icon.url:
+            if self.ctx.guild.icon:
                 embed.set_thumbnail(url=self.ctx.guild.icon.url)
             else:
                 pass
@@ -146,7 +146,7 @@ class Menu(discord.ui.View):
             description += '\n```'
 
             embed = discord.Embed(title="Profit & Loss", description=description)
-            if self.ctx.guild.icon.url:
+            if self.ctx.guild.icon:
                 embed.set_thumbnail(url=self.ctx.guild.icon.url)
             else:
                 pass
@@ -156,7 +156,7 @@ class Menu(discord.ui.View):
     @discord.ui.button(label="Exit", style=discord.ButtonStyle.red, emoji="<:cross:907833612471242852>")
     async def cancel(self, button: discord.ui.Button, interaction: discord.Interaction):
         self.clear_items()
-        self.add_item(item=discord.ui.Button(emoji="<:cross:907833612471242852>", label="Shop Closed",
+        self.add_item(item=discord.ui.Button(emoji="<:cross:907833612471242852>", label="Command Closed",
                                              style=discord.ButtonStyle.red, disabled=True))
         await self.message.edit(view=self)
         await interaction.response.send_message("Shop closed successfully. Interface will close in 5 seconds.",
@@ -165,7 +165,7 @@ class Menu(discord.ui.View):
 
     async def on_timeout(self) -> None:
         self.clear_items()
-        self.add_item(item=discord.ui.Button(emoji="<:cross:907833612471242852>", label="Shop Closed",
+        self.add_item(item=discord.ui.Button(emoji="<:cross:907833612471242852>", label="Command Closed",
                                              style=discord.ButtonStyle.red, disabled=True))
         await self.message.edit(view=self)
         self.stop()
@@ -190,24 +190,34 @@ class TradeCommands(commands.Cog, name="🛠️ Trade Commands"):
     @commands.cooldown(1, 5, commands.BucketType.user)
     async def balance(self, ctx):
         exchange = cro.Exchange()
-        a = await exchange.get_pairs()
+        pairs = await exchange.get_pairs()
         account = cro.Account(api_key=API_KEY, api_secret=SECRET_KEY)
         balance = await account.get_balance()
 
         balances = []
         for coin in balance:
             if balance[coin].total:
-                balances.append([balance[coin], coin])
+                if str(coin.exchange_name) != "USDT":
+                    pairObject = [n for n in pairs if n.exchange_name == f"{coin.exchange_name}_USDT"][0]
+                    current_price = await exchange.get_price(pairObject)
+                else:
+                    current_price = 1
+                balances.append([balance[coin], coin, current_price])
 
         description = '```\n'
-        description += "Ticker   | Quantity | $ Price \n"
-        for ticker, coin in balances:
+        description += "Ticker   | Quantity | $ Price | $ Total Value | Staking \n"
+        for ticker, coin, current_price in balances:
             name = ticker.coin.exchange_name
             qty = ticker.total
+            stake = ticker.in_stake
             description += f"{str(name)}{(10 - len(str(name))) * ' '}" \
-                           f"{round(qty, 3)}{(11 - (len(str(round(qty, 3))))) * ' '}\n"
-        description += '\n```'
+                           f"{round(qty, 3)}{(11 - (len(str(round(qty, 3))))) * ' '}" \
+                           f"${round(current_price, 3)}{(10 - (len(str(round(current_price, 3)))) - 1) * ' '}" \
+                           f"${round((current_price * qty), 3)}{(16 - (len(str(round((current_price * qty), 3)))) - 1) * ' '}" \
+                           f"{round(stake, 3)}{(16 - (len(str(round((current_price * qty), 3))))) * ' '}"
 
+
+        description += '\n```'
         embed = discord.Embed(title="Coin Balance", description=description)
         await ctx.send(embed=embed)
 
@@ -306,9 +316,9 @@ class TradeCommands(commands.Cog, name="🛠️ Trade Commands"):
             pnl = qty * (current_price - cost_basis)
             percentage = (pnl / cost) * 100
             description += f"{name}{(10 - len(name)) * ' '}" \
-                           f"${round(cost, 4)}{(8 - (len(str(round(cost, 4)))) + 1) * ' '}" \
-                           f"{round(qty, 3)}{(11 - len(str(round(qty, 3)))) * ' '}" \
-                           f"${round(cost_basis, 4)}{(10 - len(str(round(cost_basis, 4))) + 1) * ' '}" \
+                           f"${round(cost, 2)}{(8 - (len(str(round(cost, 2)))) + 1) * ' '}" \
+                           f"{round(qty, 2)}{(11 - len(str(round(qty, 2)))) * ' '}" \
+                           f"${round(cost_basis, 3)}{(10 - len(str(round(cost_basis, 3))) + 1) * ' '}" \
                            f"${round(pnl, 2)} ({round(percentage, 2)}%)\n"
 
             worksheet.write(row + 1, col, name)
@@ -321,37 +331,6 @@ class TradeCommands(commands.Cog, name="🛠️ Trade Commands"):
         embed = discord.Embed(title="Portfolio", description=description)
         await ctx.send(embed=embed)
 
-    @commands.command(brief="Checks your total profit.", description=f"profit**\n\nChecks your total profit.")
-    @commands.is_owner()
-    @commands.cooldown(1, 5, commands.BucketType.user)
-    async def profit(self, ctx):
-
-        allTrades = [i for i in c.execute('SELECT * FROM sold')]
-
-        if not allTrades:
-            return await ctx.send("You do not have any sell trades made.")
-
-        pages = math.ceil(len(allTrades) / 15)
-        i = 1
-        everyPage = [item for item in allTrades[15 * (i - 1):i * 15]]
-
-        description = '```\n'
-        description += "Ticker   | Quantity | $ Sold | Real PnL\n"
-        for id, type, name, qty, cost_basis, sell_price, profit in everyPage:
-            percentage = (profit - 1) * 100
-            pnl = sell_price * qty - cost_basis * qty
-            description += f"{name}{(10 - len(name)) * ' '}" \
-                           f"{round(qty, 3)}{(11 - (len(str(round(qty, 3))))) * ' '}" \
-                           f"${round(sell_price, 3)}{(9 - len(str(round(sell_price, 3)))) * ' '}" \
-                           f"${round(pnl, 2)} ({round(percentage, 2)}%)\n"
-
-        description += '\n```'
-
-        view = Menu(ctx, allTrades)
-        embed = discord.Embed(title="Profit & Loss", description=description)
-        embed.set_footer(text=f"Page {i} of {pages}", icon_url=ctx.author.avatar.url)
-        view.message = await ctx.send(embed=embed, view=view)
-        await view.wait()
 
     @commands.command(brief="Starts a market buy order.",
                       description=f"marketbuy [Symbol] [Total Price]**\n\nStarts a market buy order.")
